@@ -1,2 +1,0 @@
-# Answer Comparison Panel
-

@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>问卷答卷对比面板</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<script>window.echarts||document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.1/echarts.min.js"><\/script>');</script>
+<style>
+  :root{
+    --bg:#F4F1EA; --panel:#FFFFFF; --ink:#1C1917; --ink-2:#57534E; --ink-3:#8A857E;
+    --line:#E7E2D8; --accent:#0E7490; --same:#0F9D6E; --diff:#D9480F; --same-bg:#E7F5EF; --diff-bg:#FCEAE2;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:"Noto Sans SC","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+    line-height:1.6; padding:32px 20px 60px;
+  }
+  .wrap{max-width:1180px; margin:0 auto;}
+  header{ margin-bottom:28px; }
+  .kicker{
+    font-family:"Noto Serif SC",Georgia,serif; color:var(--accent); font-size:13px;
+    letter-spacing:.18em; margin-bottom:10px;
+  }
+  h1{ font-family:"Noto Serif SC",Georgia,serif; font-size:30px; font-weight:700; letter-spacing:.02em; }
+  .sub{ color:var(--ink-2); font-size:14px; margin-top:8px; max-width:820px; }
+  .sub b{ color:var(--ink); }
+
+  /* 元信息卡 */
+  .meta-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:18px; }
+  .mcard{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px 18px; }
+  .mcard .lab{ font-size:12px; color:var(--ink-3); letter-spacing:.08em; }
+  .mcard .val{ font-size:19px; font-weight:700; margin-top:4px; }
+  .mcard .val small{ font-size:12px; font-weight:400; color:var(--ink-2); }
+  .mcard .tag{ display:inline-block; font-size:11px; padding:2px 8px; border-radius:20px; margin-top:6px; }
+  .tag.same{ background:var(--same-bg); color:var(--same); }
+  .tag.diff{ background:var(--diff-bg); color:var(--diff); }
+  .tag.gray{ background:#EFECE4; color:var(--ink-2); }
+
+  /* 图表区 */
+  .charts{ display:grid; grid-template-columns:1fr 1.2fr; gap:14px; margin-bottom:18px; }
+  .chart-box{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px 12px 6px; }
+  .chart-box h3{ font-size:14px; font-weight:600; padding:4px 8px 0; }
+  .chart-box .note{ font-size:11px; color:var(--ink-3); padding:0 8px 4px; }
+  .chart{ width:100%; height:280px; }
+
+  /* 逐题对比表 */
+  .tbl-wrap{ background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:hidden; margin-bottom:18px; }
+  .tbl-head{ display:flex; align-items:center; padding:14px 18px 10px; }
+  .tbl-head h3{ font-size:15px; font-weight:600; }
+  .tbl-head .cnt{ margin-left:auto; font-size:12px; color:var(--ink-2); }
+  table{ width:100%; border-collapse:collapse; }
+  th{ font-size:12px; color:var(--ink-2); font-weight:600; text-align:left; padding:8px 12px; background:#FAF8F2; border-top:1px solid var(--line); }
+  td{ font-size:13px; padding:10px 12px; border-top:1px solid var(--line); vertical-align:top; }
+  tr.same td{ background:rgba(15,157,110,.045); }
+  tr.diff td{ background:rgba(217,72,15,.04); }
+  .q-no{ color:var(--ink-3); font-size:12px; white-space:nowrap; width:34px; }
+  .q-title{ width:24%; min-width:190px; color:var(--ink-2); font-size:12.5px; }
+  .ans{ width:27%; }
+  .ans .who{ font-size:11px; color:var(--ink-3); display:block; margin-bottom:2px; }
+  .badge{ display:inline-block; font-size:11px; padding:1px 9px; border-radius:20px; white-space:nowrap; width:64px; text-align:center; }
+  .badge.same{ background:var(--same-bg); color:var(--same); }
+  .badge.diff{ background:var(--diff-bg); color:var(--diff); }
+  .badge.part{ background:#FEF3E2; color:#B45309; }
+
+  /* 开放题对比 */
+  .open{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px; margin-bottom:18px; }
+  .open h3{ font-size:15px; font-weight:600; margin-bottom:4px; }
+  .open .q{ font-size:12.5px; color:var(--ink-2); margin-bottom:14px; }
+  .open-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .oa{ border:1px solid var(--line); border-radius:8px; padding:14px; }
+  .oa .who{ font-size:12px; font-weight:600; margin-bottom:8px; display:flex; align-items:center; gap:8px; }
+  .dot{ width:8px; height:8px; border-radius:50%; display:inline-block; }
+  .oa p{ font-size:13px; color:var(--ink); }
+
+  /* 洞察区 */
+  .insights{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px; }
+  .insights h3{ font-size:15px; font-weight:600; margin-bottom:12px; }
+  .insights ul{ list-style:none; }
+  .insights li{ font-size:13.5px; padding:10px 0; border-top:1px dashed var(--line); display:flex; gap:10px; }
+  .insights li:first-child{ border-top:none; }
+  .insights .ix{ color:var(--accent); font-family:"Noto Serif SC",Georgia,serif; font-weight:700; flex:none; }
+  .insights b{ color:var(--ink); }
+  .insights .dim{ color:var(--ink-2); }
+
+  footer{ margin-top:20px; font-size:12px; color:var(--ink-3); }
+
+  @media (max-width:860px){
+    .meta-grid{ grid-template-columns:repeat(2,1fr); }
+    .charts{ grid-template-columns:1fr; }
+    .open-grid{ grid-template-columns:1fr; }
+    .tbl-head{ flex-wrap:wrap; gap:6px; }
+    table{ display:block; overflow-x:auto; white-space:normal; }
+    td.q-title{ min-width:0; }
+  }
+  @media (max-width:520px){
+    body{ padding:20px 12px 40px; }
+    h1{ font-size:23px; }
+    .meta-grid{ grid-template-columns:1fr 1fr; gap:10px; }
+    .mcard .val{ font-size:16px; }
+    .mcard{ padding:12px 14px; }
+    table{ min-width:560px; }
+    .tbl-wrap{ overflow-x:auto; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">问卷答卷对比 · 数据面板</div>
+    <h1>网络言论、信息过滤与算法推荐对青年价值观的影响</h1>
+    <p class="sub">对比对象：<b>代填答卷</b>（刘昊宇画像，本机提交）与 <b>1.xlsx 第 10 行答卷</b>（序号 9，2026-08-26 提交，IP 浙江金华）。逐题比对两份答案的异同，共 25 题。</p>
+  </header>
+
+  <section class="meta-grid">
+    <div class="mcard">
+      <div class="lab">代填答卷 · 来源</div>
+      <div class="val">本机提交<small> · 2026/9/9</small></div>
+      <span class="tag gray">刘昊宇画像</span>
+    </div>
+    <div class="mcard">
+      <div class="lab">第10行答卷 · 来源</div>
+      <div class="val">微信提交<small> · 2026/8/26</small></div>
+      <span class="tag gray">浙江·金华 IP</span>
+    </div>
+    <div class="mcard">
+      <div class="lab">完全一致的题</div>
+      <div class="val" style="color:var(--same)">11 <small>/ 25 题</small></div>
+      <span class="tag same">含基本信息 4 题全中</span>
+    </div>
+    <div class="mcard">
+      <div class="lab">存在差异的题</div>
+      <div class="val" style="color:var(--diff)">14 <small>/ 25 题</small></div>
+      <span class="tag diff">观点题为主</span>
+    </div>
+  </section>
+
+  <section class="charts">
+    <div class="chart-box">
+      <h3>整体一致率</h3>
+      <div class="note">按 25 题逐题比对，完全一致 11 题（44%），存在差异 14 题（56%）</div>
+      <div id="donut" class="chart"></div>
+    </div>
+    <div class="chart-box">
+      <h3>分维度一致率</h3>
+      <div class="note">按题目性质分 5 组统计各维度完全一致的比例</div>
+      <div id="dimbar" class="chart"></div>
+    </div>
+  </section>
+
+  <section class="tbl-wrap">
+    <div class="tbl-head">
+      <h3>25 题逐题对比</h3>
+      <span class="cnt">绿色＝完全一致 · 橙色＝存在差异</span>
+    </div>
+    <table id="cmp">
+      <thead><tr><th style="width:34px">#</th><th>题目</th><th>代填答卷（A）</th><th>第10行答卷（B）</th><th style="width:64px">结果</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section class="open">
+    <h3>开放题：结合自身经历谈谈算法推荐、网络言论、信息过滤对您价值观的影响</h3>
+    <p class="q">两份答卷各自侧重不同：代填答卷聚焦「信息茧房与打破的成本」，第 10 行答卷聚焦「算法应当因人而异、因时而异」。</p>
+    <div class="open-grid">
+      <div class="oa">
+        <div class="who"><span class="dot" style="background:var(--accent)"></span>代填答卷（A）</div>
+        <p>平时会关注科技和 AI 方面的内容，也做过一些技术调研（比如 GitHub 静态网站部署、AI 眼镜这类产品），对算法推荐机制有一定了解。实际感受是：推荐流确实很懂我的浏览习惯，但它懂的是「我已经偏好的方向」，而不是「我需要看到的方向」——同一个话题看多了，推送会越来越单一，观点也会不知不觉变窄。遇到热点事件，我更习惯自己查多方资料对照着看，信源标注越清楚、对照越多越不容易被带偏；网上的极端言论看多了，我会提醒自己不要把网络舆论等同于现实社会。说实话，识别信息茧房不难，难的是主动去打破——平台默认让你舒服，反向去看总需要额外花力气。希望平台能多推一些「我不同意但值得看」的内容，也给用户一个自己决定是否开启算法推荐的开关。</p>
+      </div>
+      <div class="oa">
+        <div class="who"><span class="dot" style="background:var(--diff)"></span>第 10 行答卷（B）</div>
+        <p>算法是把双刃剑，可以搜索提高效率，但是形成的信息茧房又容易让用户自我封闭，反而走向了自由开放的负面，所以可以向抖音精选之前一样和 ai 直接描述自己的需求，比如我最近对多模态模型训练感兴趣就让他给我多推，比如我主队输了就让他不要给我推这一场比赛的视频，算法不应该是一套固定的公式，应该是因人而异，因时而异的。</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="insights">
+    <h3>对比洞察：代填画像与真实答卷的偏差</h3>
+    <ul id="ins"></ul>
+  </section>
+
+  <footer>数据来源：代填答卷（当前工作簿第 2 行）与 1.xlsx 第 10 行（序号 9）逐题比对；维度一致率口径＝该维度内完全一致的题数 ÷ 该维度总题数。</footer>
+</div>
+
+<script>
+/* ===== 数据（两份答卷，25 题） ===== */
+var DATA = [
+  {q:1,  t:"您的性别？", a:"A. 男", b:"A. 男", s:"same"},
+  {q:2,  t:"您的年龄段？", a:"B. 19‑22 岁", b:"B. 19‑22 岁", s:"same"},
+  {q:3,  t:"您的身份？", a:"C. 本科大三", b:"C. 本科大三", s:"same"},
+  {q:4,  t:"您平均每日上网时长？", a:"C. 4‑6 小时", b:"C. 4‑6 小时", s:"same"},
+  {q:5,  t:"日常最常使用的网络平台（多选）", a:"短视频┋社交论坛┋资讯新闻 APP", b:"短视频┋资讯新闻 APP┋游戏平台", s:"diff"},
+  {q:6,  t:"您是否能感知平台存在算法个性化推荐？", a:"A. 非常明显，推送高度贴合浏览习惯", b:"B. 有一定感觉，部分内容符合喜好", s:"diff"},
+  {q:7,  t:"多次浏览某类观点后，平台推送同类立场内容？", a:"A. 总是", b:"B. 经常", s:"diff"},
+  {q:8,  t:"是否发现争议性言论被平台过滤、限流、删除？", a:"A. 经常看到删除/限流提示", b:"A. 经常看到删除/限流提示", s:"same"},
+  {q:9,  t:"刷推荐内容时遇到偏激、对立、情绪化言论的频率？", a:"B. 经常出现", b:"C. 偶尔看到", s:"diff"},
+  {q:10, t:"算法推送内容与自身观点一致时，您会？", a:"B. 短暂认同，但保持怀疑", b:"B. 短暂认同，但保持怀疑", s:"same"},
+  {q:11, t:"算法推送与自身立场相反的观点，您通常会？", a:"C. 耐心阅读，反思自身看法", b:"B. 内心反感，简单浏览", s:"diff"},
+  {q:12, t:"是否意识到算法会构建信息茧房？", a:"A. 非常清楚，会刻意打破", b:"A. 非常清楚，会刻意打破", s:"same"},
+  {q:13, t:"面对网络热点事件，判断主要来源于？（多选）", a:"网友评论┋官方媒体┋自己查多方资料", b:"算法推送┋官方媒体┋自己查资料┋身边人", s:"diff"},
+  {q:14, t:"大量同质化内容推送后，会改变您对事件的是非判断？", a:"C. 轻微影响，不改变核心判断", b:"C. 轻微影响，不改变核心判断", s:"same"},
+  {q:15, t:"网络上充斥极端对立言论，您看待社会现实会？", a:"C. 理性区分网络舆论与现实社会", b:"B. 部分事情会变得偏激", s:"diff"},
+  {q:16, t:"长期信息投喂后，对不同群体、观点包容程度变化？", a:"D. 更懂换位思考，包容多元观点", b:"D. 更懂换位思考，包容多元观点", s:"same"},
+  {q:17, t:"未经核实的消息被算法大量推送后，您会？", a:"C. 会主动求证信息真伪", b:"D. 直接判定为谣言不予理会", s:"diff"},
+  {q:18, t:"平台信息过滤对您辨别对错帮助如何？", a:"B. 有一定正向帮助", b:"B. 有一定正向帮助", s:"same"},
+  {q:19, t:"流量导向内容会影响您的社会价值追求？", a:"B. 存在一定影响", b:"D. 基本不受影响", s:"diff"},
+  {q:20, t:"娱乐化内容会降低您对公共社会议题的关注度？", a:"C. 没有变化", b:"B. 有所降低", s:"diff"},
+  {q:21, t:"算法放大矛盾时，您的价值立场容易摇摆？", a:"C. 能守住立场，不易摇摆", b:"C. 能守住立场，不易摇摆", s:"same"},
+  {q:22, t:"算法推荐整体对青年价值观的影响偏向？", a:"C. 正负影响差不多", b:"B. 负面影响略大于正面", s:"diff"},
+  {q:23, t:"是否会主动采取行动削弱算法认知局限？（多选）", a:"刻意搜索不同立场的信息┋减少刷推荐流时间", b:"刻意搜索不同立场的信息", s:"diff"},
+  {q:24, t:"平台应当如何优化算法与信息过滤？（多选）", a:"增加不同立场推送┋加大过滤力度┋用户自主开关", b:"增加不同立场推送┋其他：用户自主选择", s:"diff"},
+  {q:25, t:"开放题：算法推荐、网络言论、信息过滤对您价值观的实际感受", a:"信息茧房需主动打破，希望推「不同意但值得看」的内容", b:"算法应因人而异、因时而异（多模态训练、主队视频等场景）", s:"diff"}
+];
+
+/* ===== 渲染逐题对比表 ===== */
+var tbody = document.querySelector('#cmp tbody');
+var out = '';
+for (var i = 0; i < DATA.length; i++) {
+  var d = DATA[i];
+  var badge = d.s === 'same'
+    ? '<span class="badge same">一致</span>'
+    : '<span class="badge diff">差异</span>';
+  out += '<tr class="' + d.s + '">'
+    + '<td class="q-no">' + d.q + '</td>'
+    + '<td class="q-title">' + d.t + '</td>'
+    + '<td class="ans"><span class="who">代填 · A</span>' + d.a + '</td>'
+    + '<td class="ans"><span class="who">第10行 · B</span>' + d.b + '</td>'
+    + '<td>' + badge + '</td>'
+    + '</tr>';
+}
+tbody.innerHTML = out;
+
+/* ===== 洞察文案 ===== */
+var INS = [
+  ['01', '基本信息 4 题全部命中', '性别、年龄段、身份、上网时长两份答卷完全一致——「男 / 19‑22 岁 / 本科大三 / 每日 4‑6 小时」的画像推断方向正确。'],
+  ['02', '高估了用户对算法的「感知强度」', '第 6、7、9 题：代填为「非常明显 / 总是 / 经常出现」，真实答卷为「有一定感觉 / 经常 / 偶尔看到」——真实用户对算法推送的体感更温和。'],
+  ['03', '高估了用户的「理性克制」', '第 11、15、17 题：代填倾向「耐心阅读反思 / 理性区分 / 主动求证」，真实答卷是「内心反感简单浏览 / 部分事情会变得偏激 / 直接判定谣言不理会」——真实态度更直接、更有人性。'],
+  ['04', '低估了用户对算法的「警惕」', '第 22 题真实选择「负面影响略大于正面」（代填为「正负差不多」）；第 24 题真实答卷用「其他」补充了「用户自主选择」，希望算法开关在自己手里。'],
+  ['05', '行动意愿：真实答卷更克制', '第 23 题真实答卷只选了「刻意搜索不同立场的信息」一项，未选择减少刷推荐流时间——与开放题「识别信息茧房不难、难在主动打破」形成呼应。'],
+  ['06', '开放题：真实答卷更具体、更贴近日常', '真实答卷以「多模态模型训练」「主队输了别推比赛视频」等亲身场景说明算法应「因人而异、因时而异」；代填答卷则偏概念化的信息茧房论述。']
+];
+var ul = document.querySelector('#ins');
+var insHtml = '';
+for (var j = 0; j < INS.length; j++) {
+  insHtml += '<li><span class="ix">' + INS[j][0] + '</span><div><b>' + INS[j][1] + '</b><br><span class="dim">' + INS[j][2] + '</span></div></li>';
+}
+ul.innerHTML = insHtml;
+
+/* ===== ECharts ===== */
+function renderCharts() {
+  if (typeof echarts === 'undefined') return;
+  /* 环形图：一致 vs 差异 */
+  var donut = echarts.init(document.getElementById('donut'));
+  donut.setOption({
+    backgroundColor: 'transparent',
+    tooltip: { trigger: 'item', triggerOn: 'mousemove|click', renderMode: 'richText', confine: true, formatter: '{b}: {c} 题（{d}%）' },
+    legend: { bottom: 4, textStyle: { fontSize: 11, color: '#57534E' }, itemWidth: 12, itemHeight: 12 },
+    series: [{
+      type: 'pie', radius: ['46%', '72%'], center: ['50%', '46%'],
+      avoidLabelOverlap: true,
+      itemStyle: { borderRadius: 6, borderColor: '#FFFFFF', borderWidth: 2 },
+      label: { show: true, position: 'center', fontSize: 26, fontWeight: 700, color: '#1C1917', formatter: '44%\n一致率' },
+      emphasis: { label: { show: true, fontSize: 26, fontWeight: 700 } },
+      labelLine: { show: false },
+      data: [
+        { value: 11, name: '完全一致', itemStyle: { color: '#0F9D6E' } },
+        { value: 14, name: '存在差异', itemStyle: { color: '#D9480F' } }
+      ]
+    }]
+  });
+
+  /* 维度一致率条形图 */
+  var dims = [
+    { name: '基本信息\n（1-4题）', rate: 100 },
+    { name: '信息态度与反应\n（10-17题）', rate: 50 },
+    { name: '价值观与影响\n（18-22题）', rate: 40 },
+    { name: '平台与算法感知\n（5-9题）', rate: 20 },
+    { name: '行动与建议\n（23-24题）', rate: 0 }
+  ];
+  var dimbar = echarts.init(document.getElementById('dimbar'));
+  dimbar.setOption({
+    backgroundColor: 'transparent',
+    grid: { left: 8, right: 46, top: 16, bottom: 8, containLabel: true },
+    tooltip: { trigger: 'axis', triggerOn: 'mousemove|click', renderMode: 'richText', confine: true,
+      formatter: function (p) { return p[0].name.replace('\n', '') + '<br>一致率：' + p[0].value + '%'; } },
+    xAxis: { type: 'value', max: 100, axisLabel: { formatter: '{value}%', fontSize: 10, color: '#8A857E' }, splitLine: { lineStyle: { color: '#EFECE4' } } },
+    yAxis: { type: 'category', data: dims.map(function (d) { return d.name; }),
+      axisLabel: { fontSize: 11, color: '#57534E', lineHeight: 15 }, axisLine: { show: false }, axisTick: { show: false } },
+    series: [{
+      type: 'bar', barWidth: 20,
+      data: dims.map(function (d) {
+        return { value: d.rate, itemStyle: { color: d.rate >= 60 ? '#0F9D6E' : (d.rate >= 40 ? '#E8A33D' : '#D9480F'), borderRadius: [0, 5, 5, 0] } };
+      }),
+      label: { show: true, position: 'right', fontSize: 11, fontWeight: 600, color: '#1C1917', formatter: '{c}%' }
+    }]
+  });
+  window.addEventListener('resize', function () { donut.resize(); dimbar.resize(); });
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', renderCharts);
+} else {
+  renderCharts();
+}
+</script>
+</body>
+</html>
